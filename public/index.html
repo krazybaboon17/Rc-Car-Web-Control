@@ -4,10 +4,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RC Car</title>
 <style>
-body { margin:0; font-family:Arial; background:#f2f2f2; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; }
-#joy { width:250px; height:250px; background:#ddd; border-radius:50%; position:relative; }
-#knob { width:100px; height:100px; background:#4CAF50; border-radius:50%; position:absolute; left:75px; top:75px; }
-button { margin-top:20px; font-size:20px; padding:12px 24px; }
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #f2f2f2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#joy {
+  width: 250px;
+  height: 250px;
+  background: #ddd;
+  border-radius: 50%;
+  position: relative;
+  touch-action: none;
+}
+
+#knob {
+  width: 100px;
+  height: 100px;
+  background: #4CAF50;
+  border-radius: 50%;
+  position: absolute;
+  left: 75px;
+  top: 75px;
+  touch-action: none;
+}
+
+button {
+  margin-top: 20px;
+  font-size: 20px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  background: #FF5722;
+  color: white;
+  cursor: pointer;
+}
 </style>
 </head>
 <body>
@@ -21,20 +59,72 @@ const joy = document.getElementById("joy");
 const knob = document.getElementById("knob");
 const horn = document.getElementById("horn");
 
-function send(cmd){ if(ws.readyState===1) ws.send(cmd); }
+const radius = 75; // joystick radius (container radius - knob radius)
+const center = 125; // center of joystick container
 
-joy.ontouchmove = e => {
-  e.preventDefault();
-  let r = joy.getBoundingClientRect();
-  let x = e.touches[0].clientX - r.left - 125;
-  let y = e.touches[0].clientY - r.top - 125;
+function send(cmd) {
+  if(ws.readyState === 1) ws.send(cmd);
+}
+
+function moveJoystick(x, y) {
+  // limit knob inside circle
+  const dist = Math.hypot(x, y);
+  if(dist > radius) {
+    x = (x / dist) * radius;
+    y = (y / dist) * radius;
+  }
+
+  // update knob visually
+  knob.style.left = `${center + x - 50}px`;
+  knob.style.top = `${center + y - 50}px`;
+
   send(`${x},${y}`);
-};
+}
 
-joy.ontouchend = ()=> send("0,0");
+function resetJoystick() {
+  knob.style.left = `${center - 50}px`;
+  knob.style.top = `${center - 50}px`;
+  send("0,0");
+}
 
-horn.ontouchstart = ()=> send("buzz_on");
-horn.ontouchend = ()=> send("buzz_off");
+// ---------------- Touch Events ----------------
+joy.addEventListener("touchstart", e => {
+  e.preventDefault();
+  moveJoystick(e.touches[0].clientX - joy.getBoundingClientRect().left - center,
+               e.touches[0].clientY - joy.getBoundingClientRect().top - center);
+});
+
+joy.addEventListener("touchmove", e => {
+  e.preventDefault();
+  moveJoystick(e.touches[0].clientX - joy.getBoundingClientRect().left - center,
+               e.touches[0].clientY - joy.getBoundingClientRect().top - center);
+});
+
+joy.addEventListener("touchend", e => {
+  resetJoystick();
+});
+
+// ---------------- Mouse Events ----------------
+joy.addEventListener("mousedown", e => {
+  function onMove(evt) {
+    moveJoystick(evt.clientX - joy.getBoundingClientRect().left - center,
+                 evt.clientY - joy.getBoundingClientRect().top - center);
+  }
+  function onUp() {
+    resetJoystick();
+    window.removeEventListener("mousemove", onMove);
+    window.removeEventListener("mouseup", onUp);
+  }
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", onUp);
+  onMove(e); // move immediately
+});
+
+// ---------------- Horn Button ----------------
+horn.addEventListener("mousedown", ()=> send("buzz_on"));
+horn.addEventListener("mouseup", ()=> send("buzz_off"));
+horn.addEventListener("touchstart", ()=> send("buzz_on"));
+horn.addEventListener("touchend", ()=> send("buzz_off"));
 </script>
 
 </body>
