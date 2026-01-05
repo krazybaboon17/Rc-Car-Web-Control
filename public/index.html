@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RC Car</title>
+<style>
+body { margin:0; font-family:Arial; background:#f2f2f2; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; }
+#joy { width:250px; height:250px; background:#ddd; border-radius:50%; position:relative; }
+#knob { width:100px; height:100px; background:#4CAF50; border-radius:50%; position:absolute; left:75px; top:75px; }
+button { margin-top:20px; font-size:20px; padding:12px 24px; }
+</style>
+</head>
+<body>
+
+<div id="joy"><div id="knob"></div></div>
+<button id="horn">Horn</button>
+
+<script>
+const ws = new WebSocket(`wss://${location.host}`);
+const joy = document.getElementById("joy");
+const knob = document.getElementById("knob");
+const horn = document.getElementById("horn");
+
+function send(cmd){ if(ws.readyState===1) ws.send(cmd); }
+
+joy.ontouchmove = e => {
+  e.preventDefault();
+  let r = joy.getBoundingClientRect();
+  let x = e.touches[0].clientX - r.left - 125;
+  let y = e.touches[0].clientY - r.top - 125;
+  send(`${x},${y}`);
+};
+
+joy.ontouchend = ()=> send("0,0");
+
+horn.ontouchstart = ()=> send("buzz_on");
+horn.ontouchend = ()=> send("buzz_off");
+</script>
+
+</body>
+</html>
